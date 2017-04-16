@@ -29,6 +29,11 @@ function buildImages {
     USERID=${3:-1000}
     PHP=${4-:"all"}
 
+    imageExists "${NAME}:${VERSION}-nginx"
+    if [[ $? == 0 ]]; then
+        docker build -t "${NAME}:${VERSION}-nginx" --build-arg USERID="$USERID" docker/nginx
+    fi
+
     imageExists "${NAME}:${VERSION}-php56"
     if [[ $? == 0 ]] && [[ "$PHP" == "php56" || "$PHP" == "all" ]]; then
         docker build -t "${NAME}:${VERSION}-php56" --build-arg USERID="$USERID" docker/php56
@@ -79,10 +84,12 @@ function runInBackground {
     export IMAGE_VERSION=$1
     docker-compose -f docker-compose.yml -f docker-compose.local.yml kill > /dev/null 2>&1
     docker-compose -f docker-compose.yml -f docker-compose.local.yml rm -f -v > /dev/null 2>&1
-    docker-compose -f docker-compose.yml -f docker-compose.local.yml up -d nginx php mysql
-    docker-compose -f docker-compose.yml -f docker-compose.local.yml exec php bash
-    docker-compose -f docker-compose.yml -f docker-compose.local.yml kill > /dev/null 2>&1
-    docker-compose -f docker-compose.yml -f docker-compose.local.yml rm -f -v > /dev/null 2>&1
+    docker-compose -f docker-compose.yml -f docker-compose.local.yml up
+}
+
+function stop {
+    export IMAGE_VERSION=$1
+    docker-compose -f docker-compose.yml -f docker-compose.local.yml down
 }
 
 if [[ $TASK_NAME == '' ]]; then
@@ -104,6 +111,7 @@ if [[ $TASK_NAME == '' ]]; then
     echo -e "'build-56-coverage' - is running build ant tasks based on php 5.6 with code coverage";
     echo -e "'run-56' - is running dev env and attaching tty php 5.6";
     echo -e "'run-56-coverage' - is running dev env with php5.6, xdebug and attaching tty";
+    echo -e "'stop' - is stopping dev env";
 fi
 
 case $TASK_NAME in
@@ -157,6 +165,9 @@ case $TASK_NAME in
     'run-7-coverage')
         buildImages "${APP_NAME}" "${APP_VERSION}" "${USERID}" "php7xdebug"
         runInBackground "${APP_NAME}:${APP_VERSION}-php7xdebug"
+        ;;
+    'stop')
+        stop "${APP_NAME}:${APP_VERSION}"
         ;;
 esac
 
